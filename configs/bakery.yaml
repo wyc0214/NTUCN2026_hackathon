@@ -1,0 +1,23 @@
+# Bakery quality standard. All numbers are STARTING POINTS: calibrate with your own "golden" samples
+# (see tools/suggest_thresholds.py).
+bakery:
+  # Gray reference card fixed in the frame (fraction of image). Remove this block if you do not use a card.
+  calibration: {card_roi: [0.88, 0.86, 0.08, 0.08], target_gray: 128}
+  px_per_mm: null            # set after measuring a known-size object; null = judge size vs batch median
+  seg:
+    bg_distance: 22          # Lab distance from tray colour; or "otsu"
+    morph_frac: 0.01
+    min_area_frac: 0.004
+  size:
+    min_mm: 70
+    max_mm: 100
+    rel_tol: 0.20            # used when px_per_mm is null: +/-20% of the batch median
+  shape:
+    min_roundness: 0.75      # set to null for non-round products (baguette, loaf...)
+    min_solidity: 0.92       # catches dents / broken edges
+  color:
+    L_min: 40                # darker than this -> over-baked   (Lab L*, 0-100)
+    L_max: 68                # lighter than this -> under-baked
+    burnt_L: 25              # pixels darker than this count as burnt
+    max_burnt_ratio: 0.04
+    max_std_L: 14            # colour unevenness inside an item

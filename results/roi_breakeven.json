@@ -1,0 +1,81 @@
+{
+  "assumptions": {
+    "system_costs": [
+      20000,
+      40000,
+      80000
+    ],
+    "cost_per_lot": [
+      5000,
+      20000,
+      50000
+    ],
+    "catch_rate": 0.8,
+    "out": "/home/claude/partguard/results"
+  },
+  "rows": [
+    {
+      "system_cost_year": 20000,
+      "cost_per_returned_lot": 5000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 5.0,
+      "per_month": 0.42
+    },
+    {
+      "system_cost_year": 20000,
+      "cost_per_returned_lot": 20000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 1.25,
+      "per_month": 0.1
+    },
+    {
+      "system_cost_year": 20000,
+      "cost_per_returned_lot": 50000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 0.5,
+      "per_month": 0.04
+    },
+    {
+      "system_cost_year": 40000,
+      "cost_per_returned_lot": 5000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 10.0,
+      "per_month": 0.83
+    },
+    {
+      "system_cost_year": 40000,
+      "cost_per_returned_lot": 20000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 2.5,
+      "per_month": 0.21
+    },
+    {
+      "system_cost_year": 40000,
+      "cost_per_returned_lot": 50000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 1.0,
+      "per_month": 0.08
+    },
+    {
+      "system_cost_year": 80000,
+      "cost_per_returned_lot": 5000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 20.0,
+      "per_month": 1.67
+    },
+    {
+      "system_cost_year": 80000,
+      "cost_per_returned_lot": 20000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 5.0,
+      "per_month": 0.42
+    },
+    {
+      "system_cost_year": 80000,
+      "cost_per_returned_lot": 50000,
+      "catch_rate": 0.8,
+      "escaped_lots_needed_per_year": 2.0,
+      "per_month": 0.17
+    }
+  ]
+}

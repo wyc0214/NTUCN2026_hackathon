@@ -1,0 +1,18 @@
+# Tray layout + menus. Rectangles are [x, y, w, h] as fractions of the image (fixed camera + tray jig).
+# Use tools/select_rois.py to draw them on a real photo.
+bento:
+  # Gray reference card fixed in the frame, outside the compartments. Remove if you do not use a card.
+  calibration: {card_roi: [0.44, 0.95, 0.12, 0.04], target_gray: 128}
+  tray:
+    inset: 0.08              # shrink each compartment crop to ignore the dividers
+    compartments:
+      rice:  [0.04, 0.06, 0.44, 0.42]
+      main:  [0.52, 0.06, 0.44, 0.42]
+      side1: [0.04, 0.54, 0.44, 0.40]
+      side2: [0.52, 0.54, 0.44, 0.40]
+  match:
+    unknown_distance: 0.60   # nearest reference farther than this -> "unknown"
+    empty_label: empty
+  menus:
+    A_chicken: {rice: rice, main: fried_chicken, side1: greens, side2: egg}
+    B_fish:    {rice: rice, main: fish,          side1: greens, side2: egg}

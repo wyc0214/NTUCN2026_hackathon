@@ -1,0 +1,29 @@
+# Metal-part standard (washers, nuts, stamped rings). Starting points: fit them to your own
+# "golden" good parts and drawing tolerances before trusting them.
+parts:
+  # Gray reference card fixed in the frame (fraction of image). Remove this block if you do not use a card.
+  calibration: {card_roi: [0.88, 0.86, 0.08, 0.08], target_gray: 128}
+  px_per_mm: null            # set after measuring a known part; then fill min_mm / max_mm below
+  seg:
+    bg_distance: 22          # Lab distance from the background; or "otsu"
+    morph_frac: 0.008
+    min_area_frac: 0.004
+  size:
+    rel_tol: 0.08            # +/-8% of the batch median outer diameter
+    min_mm: null
+    max_mm: null
+  hole:
+    min_area_frac: 0.02      # ignore holes smaller than 2% of the part area
+    rel_tol: 0.15            # hole/outer ratio may differ 15% from the batch median
+    max_offset: 0.10         # hole centre offset as a fraction of the outer radius
+  shape:
+    min_roundness: 0.96
+    min_solidity: 0.978      # fitted below the worst golden part (0.984); catches chips and bites
+  surface:
+    rust_hue: [3, 25]        # OpenCV hue range (0-180) for orange-brown
+    rust_min_sat: 80
+    max_rust_ratio: 0.004    # share of the surface that looks rusty (golden parts show 0.000)
+    denoise_sigma: 0         # optional blur before the scratch search (0 = off; blurring did not help)
+    bh_thresh: 22            # dark thin-line response (scratches)
+    noise_k: 7.0             # threshold is raised to noise_k x estimated sensor noise
+    max_scratch_ratio: 0.008

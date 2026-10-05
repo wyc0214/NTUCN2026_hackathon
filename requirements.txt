@@ -1,0 +1,6 @@
+opencv-python>=4.8
+numpy>=1.24
+pyyaml>=6.0
+# optional: swap the built-in color-histogram embedder for a neural backbone
+# onnxruntime>=1.17
+# pytest
