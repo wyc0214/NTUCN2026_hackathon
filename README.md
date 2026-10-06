@@ -1,56 +1,115 @@
-# PartGuard — 小型工廠的離線外觀品檢原型
+# PartGuard: offline visual inspection for small factories
 
-在**裝置端**（不上雲）替金屬小零件（墊片、螺帽、沖壓環）做出貨前的最後一道外觀檢查，每個零件給出合格／不合格與原因：
+PartGuard checks small metal parts (washers, nuts, stamped rings) **on the device, without the cloud**, as the last
+step before a lot ships. For every part it returns PASS or FAIL and the reason.
 
-| 檢查項目 | 原因代碼 |
+| Check | Reason codes |
 |---|---|
-| 外徑尺寸（對批次中位數或圖面公差） | `SIZE_SMALL` / `SIZE_LARGE` |
-| 缺角、毛邊、變形（實心度、橢圓度） | `DEFORMED` |
-| 孔洞：缺孔、孔徑異常、孔位偏心 | `HOLE_MISSING` / `HOLE_SIZE` / `HOLE_OFFCENTER` |
-| 表面：銹斑（色相）、刮痕（細線偵測） | `RUST` / `SCRATCH` |
+| Outer diameter (vs. batch median or drawing tolerance) | `SIZE_SMALL`, `SIZE_LARGE` |
+| Chips, burrs, deformation (solidity, roundness) | `DEFORMED` |
+| Hole: missing, wrong size, off-centre | `HOLE_MISSING`, `HOLE_SIZE`, `HOLE_OFFCENTER` |
+| Surface: rust (colour), scratches (thin dark lines) | `RUST`, `SCRATCH` |
 
-目前是**筆電可跑的原型**（OpenCV + NumPy）。同一套引擎也保留了食品範例（麵包、便當托盤），見 `partguard/bakery.py`、`partguard/bento.py`。
+Status: a **laptop prototype** (OpenCV + NumPy) built for the ASUS UGen AI League (Battlefield Lightning).
+The same engine also ships food examples (bakery, bento tray) in `partguard/bakery.py` and `partguard/bento.py`.
 
-## 快速開始
+> **Honest scope:** every number below comes from **synthetic** images (drawn washers with injected defects).
+> Real metal adds glare, oil and machining texture that is not modelled. Real-part validation is the next step.
+
+## Architecture
+
+```
+ Camera + diffuse light + gray reference card
+                 |
+                 v
+ +---------------- edge node (mini-PC or SBC + ASUS UGen300) ----------------+
+ |  1 Pre-process   light calibration (gray card), part and hole segmentation |
+ |  2 Feature model learned defect classifier on UGen300 (Stage II, planned)  |
+ |  3 Rules engine  drawing tolerances -> PASS/FAIL + reason codes            |
+ +-----------------------------------------------------------------------------+
+        |                                          |
+        v                                          v
+ station display / alert light               local JSONL log (audit)
+
+ Inputs: part spec + tolerance file (configs/parts.yaml), golden-sample library
+```
+
+Today, stages 1 and 3 run on a CPU. The `HailoEmbedder` in `partguard/backends.py` is a placeholder for running a
+learned model on the UGen300; the supported models and toolchain follow the contest platform documentation.
+
+## Quick start
 
 ```bash
 pip install -r requirements.txt
-python tools/make_parts_synthetic.py       # 產生「合成」金屬墊片測試圖（是繪製的，不是真實金屬）
-python tools/make_synthetic.py             # （選用）食品範例的合成測試圖與參考圖庫
-python tests/test_smoke.py                 # 煙霧測試
+python tools/make_parts_synthetic.py      # create synthetic washer test images (drawings, not real metal)
+python tests/test_smoke.py                # smoke tests
 python run.py --mode parts --source samples/parts_batch_mixed.png --lang en
-python run.py --mode parts --source 0 --show      # 接網路攝影機，按 q 離開
+python run.py --mode parts --source 0 --show      # webcam, press q to quit
 ```
 
-輸出：文字說明（`--lang zh|en`）、標註圖（`out/`）、逐次 JSON 紀錄與延遲（`logs/inspections.jsonl`）。
+Outputs: a text verdict (`--lang en|zh`), an annotated image (`out/`) and a JSON log with latency (`logs/inspections.jsonl`).
+Optional food examples: `python tools/make_synthetic.py`, then `--mode bakery` or `--mode bento`.
 
-## 純電腦就能產出的結果
+## Results (synthetic, reproducible)
 
 ```bash
-python tools/benchmark_parts.py     # 壓力測試 + 瑕疵嚴重度掃描，含 95% 信賴區間
-python tools/roi_model.py           # 批次退貨損益平衡（所有輸入都是假設）
+python tools/benchmark_parts.py     # lighting / colour cast / noise sweeps and defect-strength sweep, 95% intervals
+python tools/roi_model.py           # break-even model (all inputs are assumptions)
 ```
 
-- `benchmark_parts.py` 比較「沒有灰卡／有灰卡／有灰卡且曝光預留餘裕」在亮度、偏色、雜訊下的誤報，並掃描瑕疵嚴重度 0.25–1.0，找出偵測在哪裡開始失效。
-  **這是合成資料**，只能說明方法的敏感度，不能代表真實金屬零件（真實零件有反光、油污、毛邊、加工紋理）。
-- `roi_model.py`：「系統一年要攔下幾批不良品才回本？」所有輸入（系統成本、單批退貨損失、攔截率）都是假設，請換成有來源的數字。
+100 batches of 8 synthetic washers per condition (seed 2026). Defects at strength 0.75 unless noted.
 
-## 灰卡校正
+| Metric | Result |
+|---|---|
+| Defective parts caught | 100% (95% CI 99-100%, 330 parts) |
+| Correct defect named | 100% of those caught |
+| Good parts wrongly flagged | 0% (95% CI 0-0.8%, 470 parts) |
+| Latency per batch of 8 parts | about 27 ms median, 68 ms p95 (standard CPU, not UGen300) |
 
-在鏡頭畫面角落固定放一張灰卡（位置在 `configs/parts.yaml` 的 `calibration.card_roi`），程式依它把每張影像的亮度與色偏拉回基準。
-**若不放灰卡，請刪掉 `calibration` 區塊**，否則會用錯誤的區域校色。校正補不回「過曝」：亮部一旦被截斷資訊就消失了，所以實際使用要讓相機曝光預留餘裕。
+**Lighting.** Without a gray reference card, dim light (0.7x or darker) flags every good part. With the card, 0% of good
+parts are flagged from 0.6x to 1.4x light and with colour casts of +/-20%.
 
-## 換成你們的真實零件
+**Detection limit.** Defect strength is an arbitrary scale (1.0 = obvious). Caught with the right reason:
 
-1. 固定相機、治具與光源（建議漫射光；金屬反光是最大的變數，可加偏光片）。
-2. 拍 50 個以上你們認定的良品，量出 `px_per_mm`，把圖面公差填進 `configs/parts.yaml`。
-3. 用良品的分布調整門檻（目前的門檻是依合成良品的分布擬合的）。
-4. 另外收集真正的不良品，驗證抓得到。
+| Strength | Shape / size | Hole | Surface |
+|---|---|---|---|
+| 0.1 | 0% | 30%* | 0% |
+| 0.25 | 0% | 32%* | 13% |
+| 0.5 | 59% | 99% | 100% |
+| 0.75 and 1.0 | 100% | 100% | 100% |
 
-## 已知限制（請在簡報中誠實呈現）
+\* a missing hole is detected at any strength; the other hole defects need strength 0.5.
+Where detection stops depends on the thresholds. Tighter thresholds catch subtler defects but will raise false alarms
+on the natural variation of real parts.
 
-- 所有數字來自合成圖；真實金屬的反光、油污與加工紋理尚未驗證。
-- 規則式方法對很輕微的瑕疵會漏檢（見嚴重度掃描）。Stage II 的方向是把學習式缺陷分類器放到 UGen300。
-- `portable to UGen300`：`partguard/backends.py` 的 `HailoEmbedder` 仍是預留位置，實際支援的模型與工具以競賽「運算平台說明」頁為準。
-- 公開的工業瑕疵資料集多為非商業授權，與競賽規則和商業用途可能衝突，使用前請逐一確認，本專案不內附任何第三方影像。
-- 延遲數字是一般 CPU 的結果，不代表 UGen300。
+**Noise.** Reliable up to about 5 (of 255) sensor noise; false alarms begin near 10 and results break down by 20.
+The scratch threshold adapts to the estimated noise instead of producing false scratches.
+
+**Break-even (assumptions only).** With a station cost of 40,000 per year, 20,000 per returned lot and 80% of escaping
+lots stopped, about 2.5 defective lots a year must be reaching customers for one station to pay for itself.
+Replace every input with sourced numbers before relying on this.
+
+## Gray-card calibration
+
+Fix a neutral gray card in a corner of the camera frame (`calibration.card_roi` in `configs/parts.yaml`). Each frame is
+rescaled so the card always reads the same gray. **If you do not use a card, delete the `calibration` block.**
+Calibration cannot recover clipped highlights, so keep the camera exposure below saturation.
+
+## Using real parts
+
+1. Fix the camera and fixture. Use diffuse light; glare on metal is the biggest variable (a polarising filter can help).
+2. Photograph 50+ good parts, measure `px_per_mm`, and enter the drawing tolerances in `configs/parts.yaml`.
+3. Fit the thresholds to the distribution of your good parts (the current ones were fitted to synthetic good parts).
+4. Collect real defective parts to verify they are caught.
+
+## Limitations
+
+- All numbers are synthetic; glare, oil and machining texture are not modelled.
+- The rule-based method misses subtle defects (see the detection-limit table). A learned classifier on the UGen300 is
+  the Stage II plan.
+- The UGen300 integration is not implemented yet.
+- Many public industrial-defect datasets are licensed for non-commercial use only, which may conflict with the contest
+  rules and commercial use. Check each licence. This repository ships no third-party images.
+- Latency was measured on a standard CPU and does not represent the UGen300.
+
+A Traditional Chinese version of this document is in `README.zh-TW.md`.
